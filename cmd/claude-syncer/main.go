@@ -115,6 +115,7 @@ func engineOptions(p paths) engine.Options {
 		DeleteTranscripts: true,
 		QuietPeriod:       10 * time.Minute,
 		SwitchGrace:       60 * time.Second,
+		VanishGrace:       2 * time.Minute,
 		MaxDeletes:        20,
 	}
 }

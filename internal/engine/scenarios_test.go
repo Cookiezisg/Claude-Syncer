@@ -245,6 +245,98 @@ func TestMassDeleteIsHeld(t *testing.T) {
 	}
 }
 
+// Deleting many sessions in the app is the user's doing: no brake, and the
+// copies left in the signed-in account's other folders follow after a switch
+// without tripping it either.
+func TestMassDeleteInAppIsNotHeld(t *testing.T) {
+	f := newFixture(t, acctA)
+	f.opts.MaxDeletes = 1
+	ids := []string{"44444444-4444-4444-8444-444444444441", "44444444-4444-4444-8444-444444444442", "44444444-4444-4444-8444-444444444443"}
+	for _, id := range ids {
+		for _, a := range []string{acctA, acctB, acctC} {
+			f.writeCard(a, id, f.clock, "title", "x")
+		}
+	}
+	f.settle()
+	for _, id := range ids {
+		os.Remove(filepath.Join(f.folder(acctA), "local_"+id+".json"))
+		os.WriteFile(filepath.Join(f.folder(acctA), "deleted_"+id), []byte("1"), 0o600)
+	}
+	f.tick(time.Second)
+	if rep := f.run(); rep.Halted != "" {
+		t.Fatalf("held back: %s", rep.Halted)
+	}
+	for _, id := range ids {
+		for _, a := range []string{acctB, acctC} {
+			if f.card(a, id) != nil {
+				t.Errorf("%s still in %s", id, a)
+			}
+		}
+	}
+}
+
+// A deletion seen in another account still stops at the brake.
+func TestMassDeleteFromElsewhereIsHeld(t *testing.T) {
+	f := newFixture(t, acctA)
+	f.opts.MaxDeletes = 1
+	ids := []string{"44444444-4444-4444-8444-444444444441", "44444444-4444-4444-8444-444444444442"}
+	for _, id := range ids {
+		f.writeCard(acctA, id, f.clock, "title", "x")
+		f.writeCard(acctB, id, f.clock, "title", "x")
+		os.WriteFile(filepath.Join(f.folder(acctC), "deleted_"+id), []byte("1"), 0o600)
+	}
+	if rep := f.run(); rep.Halted == "" {
+		t.Fatal("not held back")
+	}
+}
+
+// The app removes a record a few seconds before it writes the tombstone.
+// A pass in between must not put the record back.
+func TestRecordRemovedBeforeTombstone(t *testing.T) {
+	f := newFixture(t, acctA)
+	for _, a := range []string{acctA, acctB, acctC} {
+		f.writeCard(a, sess1, f.clock, "cliSessionId", cli1, "title", "doomed")
+	}
+	f.settle()
+
+	os.Remove(filepath.Join(f.folder(acctA), "local_"+sess1+".json"))
+	f.tick(time.Second)
+	f.run()
+	if f.card(acctA, sess1) != nil {
+		t.Fatal("record put back before its tombstone could arrive")
+	}
+
+	os.WriteFile(filepath.Join(f.folder(acctA), "deleted_"+sess1), []byte("1"), 0o600)
+	os.WriteFile(filepath.Join(f.folder(acctA), "deleted_"+cli1), []byte("1"), 0o600)
+	f.tick(5 * time.Second)
+	f.run()
+	for _, a := range []string{acctA, acctB, acctC} {
+		if f.card(a, sess1) != nil {
+			t.Errorf("record still in %s", a)
+		}
+	}
+}
+
+// A record that disappears and is never tombstoned comes back.
+func TestVanishedRecordReturns(t *testing.T) {
+	f := newFixture(t, acctA)
+	for _, a := range []string{acctA, acctB, acctC} {
+		f.writeCard(a, sess1, f.clock, "title", "keep")
+	}
+	f.settle()
+	os.Remove(filepath.Join(f.folder(acctB), "local_"+sess1+".json"))
+	f.tick(time.Second)
+	f.run()
+	if f.card(acctB, sess1) != nil {
+		t.Fatal("put back at once")
+	}
+	f.tick(3 * time.Minute)
+	f.run()
+	if f.title(acctB, sess1) != "keep" {
+		t.Fatal("not put back after the grace period")
+	}
+}
+
 // A terminal session gets a record in every account; SDK runs, desktop
 // transcripts and system-only transcripts do not.
 func TestImportTerminalSessions(t *testing.T) {

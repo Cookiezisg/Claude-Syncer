@@ -24,6 +24,8 @@ type writer struct {
 	// inUse are CLI ids claimed by a live record (or one we cannot read, or
 	// an SSH/WSL record). A deletion never tombstones or removes them.
 	inUse map[string]bool
+	// hold: folder key + "/" + record name not to recreate yet.
+	hold map[string]bool
 }
 
 func (w *writer) change(kind string, f desktop.Folder, target, note string) {
@@ -58,6 +60,10 @@ func (w *writer) spread(s *session) {
 		f := fr.data.Folder
 		cards := cardsOf(s, fr)
 		if len(cards) == 0 {
+			if w.hold[f.Key()+"/"+s.name] {
+				// Just disappeared here; its tombstone may be on the way.
+				continue
+			}
 			// Adding is allowed everywhere, signed-in account included.
 			obj := fresh(s.name, s.want)
 			kind := "create"

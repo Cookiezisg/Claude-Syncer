@@ -53,6 +53,18 @@ type State struct {
 	AgentSeen    time.Time `json:"agentSeen,omitempty"`
 
 	Notified map[string]int64 `json:"notified,omitempty"` // issue -> unix ms of last notification
+
+	// Vanished: folder key + "/" + card name -> unix ms when a record we had
+	// seen in that folder disappeared without a tombstone. The app removes
+	// a record a few seconds before it writes the tombstone, so it is not
+	// put back until the tombstone has had time to arrive.
+	Vanished map[string]int64 `json:"vanished,omitempty"`
+
+	// Confirmed: session key -> unix ms when its deletion was let through.
+	// A deletion the user made in the app (or confirmed with --force) is
+	// carried out to the end, even if some copies can only be removed after
+	// an account switch, without tripping the mass-delete brake again.
+	Confirmed map[string]int64 `json:"confirmed,omitempty"`
 }
 
 // Session is the agreed content of one conversation.
@@ -90,6 +102,8 @@ func New() *State {
 		Sessions:    map[string]*Session{},
 		Transcripts: map[string]*transcript.Meta{},
 		Notified:    map[string]int64{},
+		Vanished:    map[string]int64{},
+		Confirmed:   map[string]int64{},
 	}
 }
 

@@ -57,7 +57,11 @@ Observed three times, and confirmed in the app's code:
 
 1. The record file is removed from the signed-in account's folder.
 2. Two tombstones are written there, with the same timestamp:
-   `deleted_<record id>` and `deleted_<cliSessionId>`.
+   `deleted_<record id>` and `deleted_<cliSessionId>`. They can arrive
+   **several seconds after** the record is removed (seen on 2026-11-19 with a
+   multi-select delete). When several sessions are deleted together, they
+   share one timestamp. A record whose id equals its own `cliSessionId` gets
+   one tombstone, and another record's delete may overwrite it.
 3. The transcript is removed **only if no record in any other account or
    profile on disk claims it** (`cliSessionIdsClaimedOnDisk`), no running
    Claude Code process is writing it, and nothing else wrote to it since the

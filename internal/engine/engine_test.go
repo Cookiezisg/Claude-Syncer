@@ -53,6 +53,7 @@ func newFixture(t *testing.T, active string) *fixture {
 		DeleteTranscripts: true,
 		QuietPeriod:       10 * time.Minute,
 		SwitchGrace:       60 * time.Second,
+		VanishGrace:       2 * time.Minute,
 		MaxDeletes:        20,
 	}
 	return f

@@ -96,8 +96,18 @@ Carrying a deletion out:
    the app does when only one account has the session. A transcript written
    in the last 10 minutes, or claimed by any other record, is never touched.
 
-**Brake:** a pass that would delete more than 20 sessions deletes none,
-notifies, and waits for `claude-syncer sync --force`.
+**Waiting for the tombstone.** The app removes a record a few seconds
+before it writes the tombstone. A record that disappears from a folder where
+it was seen, with no tombstone, is therefore not put back for two minutes.
+If no tombstone arrives by then, it is restored.
+
+**Brake:** a pass that would delete more than 20 sessions deletes none of
+them, notifies, and waits for `claude-syncer sync --force`. Deletions made in
+the app under the signed-in account do not count: that account's folder has
+the tombstone and no longer has the record, which only the app (or the
+user) does. Once a deletion has been let through it is remembered for 30
+days, so copies that can only be removed after an account switch follow
+without stopping at the brake again.
 
 ## Safety
 

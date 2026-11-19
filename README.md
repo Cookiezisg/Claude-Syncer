@@ -99,9 +99,10 @@ switch away. Every other account is always up to date.
 **Deleting is real.** Deleting a session in one account deletes it in all of
 them, and its terminal transcript goes too (as Desktop does when you only have
 one account). Removed files are kept in
-`~/Library/Application Support/claude-syncer/trash/` for 7 days. If one sync
-would delete more than 20 sessions, it deletes nothing and asks you to confirm
-with `claude-syncer sync --force`.
+`~/Library/Application Support/claude-syncer/trash/` for 7 days. Deleting
+many sessions at once in Desktop just works. If more than 20 deletions arrive
+in some other way (for example, from an account that is not signed in), they
+wait for you to confirm with `claude-syncer sync --force`.
 
 **Account settings stay with the account.** MCP servers, tool permissions,
 Remote Control, scheduled tasks and published artifacts are not copied, only

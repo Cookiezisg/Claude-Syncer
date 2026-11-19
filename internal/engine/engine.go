@@ -39,8 +39,13 @@ type Options struct {
 	// SwitchGrace: after an account switch, both accounts stay add-only
 	// this long while the app writes records back.
 	SwitchGrace time.Duration
+	// VanishGrace: a record that disappears from a folder without a
+	// tombstone is not put back for this long. The app removes a record
+	// first and writes its tombstones a few seconds later.
+	VanishGrace time.Duration
 	// MaxDeletes: a pass that would delete more sessions than this deletes
-	// none and reports why, unless Force is set.
+	// none of them and reports why, unless Force is set. Deletions made in
+	// the app by the signed-in account do not count: those are the user's.
 	MaxDeletes int
 	Force      bool
 }
@@ -218,24 +223,44 @@ func Run(o Options, st *state.State) (*Report, error) {
 		}
 	}
 
-	w := &writer{o: o, r: r, runs: runs, now: now, inUse: inUse}
+	nowMS := now().UnixMilli()
+	vanished, hold := vanishedRecords(o, st, runs, sessions, nowMS)
+	w := &writer{o: o, r: r, runs: runs, now: now, inUse: inUse, hold: hold}
 
-	// Deletions, unless there are suspiciously many.
+	// Deletions, unless there are suspiciously many that the user did not
+	// visibly make: a deletion is the user's when the signed-in account's
+	// own folder has its tombstone and no longer has the record (the app
+	// did that), or when it was let through on an earlier pass.
+	confirmed := map[string]int64{}
+	for k, t := range st.Confirmed {
+		if nowMS-t < confirmedKeep.Milliseconds() {
+			confirmed[k] = t
+		}
+	}
+	exempt := map[*session]bool{}
 	var toDelete []*session
 	for _, s := range sessions {
-		if s.deleted && w.removable(s) > 0 {
+		if !s.deleted {
+			continue
+		}
+		if _, ok := confirmed[s.key]; ok || deletedInApp(s, runs, active) {
+			exempt[s] = true
+		} else if w.removable(s) > 0 {
 			toDelete = append(toDelete, s)
 		}
 	}
 	holdDeletes := len(toDelete) > o.MaxDeletes && !o.Force
 	if holdDeletes {
-		r.Halted = fmt.Sprintf("%d sessions would be deleted in one pass (limit %d); nothing was deleted. Run `claude-syncer sync --force` if that is intended.", len(toDelete), o.MaxDeletes)
+		r.Halted = fmt.Sprintf("%d sessions would be deleted in one pass (limit %d); they were not. Run `claude-syncer sync --force` if that is intended.", len(toDelete), o.MaxDeletes)
 	}
 
 	for _, s := range sessions {
 		switch {
-		case s.deleted && !holdDeletes:
+		case s.deleted && (exempt[s] || !holdDeletes):
 			w.delete(s, tombstones, byID, len(r.Problems) == 0)
+			if _, ok := confirmed[s.key]; !ok {
+				confirmed[s.key] = nowMS
+			}
 		case s.deleted:
 			// Held back: leave everything as it is.
 		default:
@@ -250,8 +275,59 @@ func Run(o Options, st *state.State) (*Report, error) {
 
 	if !o.DryRun {
 		record(st, runs, sessions, metas)
+		st.Vanished, st.Confirmed = vanished, confirmed
 	}
 	return r, nil
+}
+
+// confirmedKeep is how long a let-through deletion is remembered: long
+// enough to outlast any stay in one account.
+const confirmedKeep = 30 * 24 * time.Hour
+
+// deletedInApp reports whether the app deleted s in the signed-in account:
+// that account's folder holds the record's tombstone and not the record.
+func deletedInApp(s *session, runs []*folderRun, active string) bool {
+	for _, fr := range runs {
+		if fr.data.Folder.Account != active {
+			continue
+		}
+		if _, ok := fr.data.Markers[s.key]; ok && len(cardsOf(s, fr)) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// vanishedRecords finds records that disappeared from a folder since the
+// last pass without a tombstone, and returns the updated Vanished map and
+// the folder/record pairs not to recreate yet (see Options.VanishGrace).
+func vanishedRecords(o Options, st *state.State, runs []*folderRun, sessions []*session, nowMS int64) (map[string]int64, map[string]bool) {
+	vanished := map[string]int64{}
+	hold := map[string]bool{}
+	for _, s := range sessions {
+		if s.deleted || s.imported {
+			continue
+		}
+		for _, fr := range runs {
+			if len(cardsOf(s, fr)) > 0 {
+				continue
+			}
+			fk := fr.data.Folder.Key()
+			k := fk + "/" + s.name
+			since, ok := st.Vanished[k]
+			if !ok {
+				if _, had := st.Bases[fk][s.name]; !had {
+					continue // never here: a new folder or a new session
+				}
+				since = nowMS
+			}
+			if nowMS-since < o.VanishGrace.Milliseconds() {
+				vanished[k] = since
+				hold[k] = true
+			}
+		}
+	}
+	return vanished, hold
 }
 
 // group collects the copies of each session across folders. A session is
