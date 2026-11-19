@@ -3,7 +3,7 @@ package jsonobj
 import "testing"
 
 func TestRoundTripKeepsBytes(t *testing.T) {
-	in := `{"sessionId":"local_x","title":"仓库 < CI/CD","n":1795089213563,"nested":{"b":1,"a":[1,2]},"t":true,"z":null}`
+	in := `{"sessionId":"local_x","title":"中文 < 标题","n":1795089213563,"nested":{"b":1,"a":[1,2]},"t":true,"z":null}`
 	o, err := Parse([]byte(in))
 	if err != nil {
 		t.Fatal(err)
