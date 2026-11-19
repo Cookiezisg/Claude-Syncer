@@ -1,0 +1,32 @@
+class ClaudeSyncer < Formula
+  desc "Keep Claude Code sessions identical across every Claude Desktop account"
+  homepage "https://github.com/Cookiezisg/Claude-Syncer"
+  url "https://github.com/Cookiezisg/Claude-Syncer/archive/refs/tags/v@VERSION@.tar.gz"
+  sha256 "@SHA256@"
+  license "MIT"
+  head "https://github.com/Cookiezisg/Claude-Syncer.git", branch: "main"
+
+  depends_on "go" => :build
+  depends_on :macos
+
+  def install
+    ldflags = "-s -w -X main.version=#{version}"
+    system "go", "build", *std_go_args(ldflags:), "./cmd/claude-syncer"
+  end
+
+  def caveats
+    <<~EOS
+      To start syncing in the background, run once:
+        claude-syncer install
+
+      Updates (brew upgrade) take effect by themselves.
+      Before `brew uninstall claude-syncer`, run:
+        claude-syncer uninstall
+    EOS
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/claude-syncer version")
+    assert_match "Usage", shell_output("#{bin}/claude-syncer help")
+  end
+end
