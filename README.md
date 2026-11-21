@@ -2,6 +2,14 @@
 
 **Use several Claude accounts on one Mac as if they were one.**
 
+[![CI](https://github.com/Cookiezisg/Claude-Syncer/actions/workflows/ci.yml/badge.svg)](https://github.com/Cookiezisg/Claude-Syncer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Cookiezisg/Claude-Syncer)](https://github.com/Cookiezisg/Claude-Syncer/releases/latest)
+![macOS](https://img.shields.io/badge/platform-macOS-lightgrey)
+![Go](https://img.shields.io/github/go-mod/go-version/Cookiezisg/Claude-Syncer)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+<p align="center"><img src="docs/assets/overview.svg" alt="Four session lists (work account, personal account, team org, terminal) showing the same three sessions, with arrows between them" width="880"></p>
+
 Claude Desktop keeps a separate list of Claude Code sessions for every
 account and organization you sign in with. Start a session under your work
 account, switch to your personal one, and it is gone. Sessions started in the
@@ -143,6 +151,12 @@ the signed-in-account rule and account-local fields
 the imported-record format
 ([claude-desktop-session-sync](https://github.com/andiradulescu/claude-desktop-session-sync)).
 
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md),
+and [SECURITY.md](SECURITY.md) for reporting a security problem. Changes are
+listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-MIT
+[MIT](LICENSE)

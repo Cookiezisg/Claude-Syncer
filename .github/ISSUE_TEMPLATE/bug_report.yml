@@ -1,0 +1,39 @@
+name: Bug report
+description: Something was not synced, was synced wrongly, or was removed.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please do not paste session titles or
+        conversation text you would rather keep private: ids are enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `claude-syncer status`
+      render: console
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant lines from `claude-syncer log`
+      description: The lines around the time it happened.
+      render: text
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.1"
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed with
+      options: [Homebrew, Release download, go install, Built from source]
